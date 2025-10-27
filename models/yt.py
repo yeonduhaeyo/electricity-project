@@ -24,10 +24,10 @@ SUB_PATH   = BASE_DIR / 'data' / 'output' / 'submission.csv'
 RANDOM_STATE = 42
 N_SPLITS = 5
 N_ITER_STUDENT = 60   # 학생 튜닝 예산
-ALPHA_CANDIDATES = [0.25, 0.4, 0.5, 0.6, 0.75]  # 증류 비중 후보
+ALPHA_CANDIDATES = [0.7, 0.8, 0.9]  # 증류 비중 후보
 
 # -----------------------
-# 2024 공휴일(사용자 제공)
+# 2024 공휴일
 # -----------------------
 def get_korean_holidays_2024():
     days = set()
@@ -52,6 +52,32 @@ def get_korean_holidays_2024():
 
 HOLIDAYS_2024 = get_korean_holidays_2024()
 
+# -----------------------
+# 계절 매핑
+# -----------------------
+season_mapping = {
+    11: 'winter', 12: 'winter', 1: 'winter',
+    2: 'spring', 3: 'spring', 4: 'spring',
+    5: 'summer', 6: 'summer', 7: 'summer', 8: 'summer',
+    9: 'autumn', 10: 'autumn'
+}
+SEASON_ORDER = ['winter', 'spring', 'summer', 'autumn']
+
+def add_season_feature(df: pd.DataFrame, dt_col: str = "측정일시", col_name: str = "season") -> pd.DataFrame:
+    """
+    dt_col에서 month를 추출해 season_mapping으로 매핑한 'season' 컬럼을 추가합니다.
+    - train은 건드리지 않고, test 전용 메타 컬럼으로만 사용.
+    - category 타입과 고정 카테고리 순서를 설정(일관성을 위해).
+    """
+    out = df.copy()
+    month = pd.to_datetime(out[dt_col]).dt.month
+    season = month.map(season_mapping)
+    out[col_name] = pd.Categorical(season, categories=SEASON_ORDER, ordered=True)
+    return out
+
+# -----------------------
+# 테스트 피처 빌드 함수
+# -----------------------
 def build_test_features(df, dt_col="측정일시"):
     df = df.copy()
     dt = pd.to_datetime(df[dt_col])
@@ -62,6 +88,9 @@ def build_test_features(df, dt_col="측정일시"):
     df["weekday"] = dt.dt.weekday.astype("int16")
     df["is_weekend"] = (df["weekday"] >= 5).astype("int8")
     df["is_holiday"] = dt.dt.date.map(lambda d: 1 if d in HOLIDAYS_2024 else 0).astype("int8")
+    df["is_12"] = (df["hour"] == 12).astype("int8")
+    df["is_21"] = (df["hour"] == 21).astype("int8")
+    df = add_season_feature(df, dt_col=dt_col, col_name="season")
     return df
 
 # -----------------------
@@ -75,19 +104,14 @@ TARGET = "전기요금(원)"
 # -----------------------
 # Teacher 설정
 #  - 가능한 많은 유용 피처 사용 (train에만 존재)
-#  - id/측정일시/타깃/작업유형 제외한 수치형 + 작업유형(범주형) 모두 사용
+#  - id/측정일시/타깃/작업유형/season 제외한 수치형 + 작업유형(범주형) 모두 사용
 # -----------------------
 all_cols = train.columns.tolist()
 teacher_num = [
     c for c in all_cols
-    if c not in ["id","측정일시","작업유형", TARGET] and train[c].dtype != 'O'
+    if c not in ["id","측정일시","작업유형", "season", TARGET] and train[c].dtype != 'O'
 ]
-teacher_cat = ["작업유형"]  # 범주형
-
-# (참고) 사용자가 보여준 스키마 기준, 아래들이 teacher_num에 자동 포함될 것:
-# ['전력사용량(kWh)','지상무효전력량(kVarh)','진상무효전력량(kVarh)','탄소배출량(tCO2)',
-#  '지상역률(%)','진상역률(%)','month','day','hour','minute','weekday','is_weekend','is_holiday',
-#  '기온(°C)','강수량(mm)','습도(%)','지면온도(°C)'] 중 존재하는 것들
+teacher_cat = ["작업유형", "season"]  # 범주형
 
 teacher_X = train[teacher_cat + teacher_num]
 teacher_y = train[TARGET].astype(float)
@@ -95,7 +119,7 @@ teacher_y = train[TARGET].astype(float)
 # 전처리 & 모델 (Teacher)
 teacher_pre = ColumnTransformer(
     transformers=[
-        ("cat", OneHotEncoder(handle_unknown="ignore", sparse=False), teacher_cat),
+        ("cat", OneHotEncoder(handle_unknown="ignore", sparse_output=False), teacher_cat),
         ("num", Pipeline(steps=[("imp", SimpleImputer(strategy="median")),
                                ("sc", StandardScaler())]), teacher_num),
     ],
@@ -112,7 +136,8 @@ teacher_model = HistGradientBoostingRegressor(
 teacher_pipe = Pipeline([("prep", teacher_pre), ("model", teacher_model)])
 
 # -----------------------
-# Teacher OOF 예측 (시간 누수 방지)
+# Teacher OOF 예측
+# OOF란 교차검증 과정에서 각 fold의 검증 세트에 대한 예측을 모은 것
 # -----------------------
 sorted_idx = train["측정일시"].argsort(kind="mergesort").values
 teacher_X_sorted = teacher_X.iloc[sorted_idx].reset_index(drop=True)
@@ -132,10 +157,10 @@ teacher_oof_mse = mean_squared_error(teacher_y_sorted, oof_pred)
 print(f"[Teacher] OOF MSE: {teacher_oof_mse:.6f}")
 
 # -----------------------
-# Student 설정 (배포 가능 피처만)
+# Student 설정
 # -----------------------
-student_num = ["month","day","hour","minute","weekday","is_weekend","is_holiday"]
-student_cat = ["작업유형"]
+student_num = ["month","day","hour","minute","weekday","is_weekend","is_holiday", "is_12", "is_21"]
+student_cat = ["작업유형", "season"]
 
 student_train_X = train[student_cat + student_num].iloc[sorted_idx].reset_index(drop=True)
 student_train_y = teacher_y_sorted  # 원 타깃 정렬
@@ -144,7 +169,8 @@ student_train_y = teacher_y_sorted  # 원 타깃 정렬
 test_feat = build_test_features(test, "측정일시")
 student_test_X = pd.concat(
     [test[["작업유형"]].reset_index(drop=True),
-     test_feat[student_num].reset_index(drop=True)],
+     test_feat[student_num].reset_index(drop=True),
+     test_feat["season"].reset_index(drop=True)],
     axis=1
 )
 
@@ -161,7 +187,7 @@ for alpha in ALPHA_CANDIDATES:
     # 간단한 학생 베이스(튜닝 전)으로 홀드아웃 평가
     base_pre = ColumnTransformer(
         transformers=[
-            ("cat", OneHotEncoder(handle_unknown="ignore", sparse=False), student_cat),
+            ("cat", OneHotEncoder(handle_unknown="ignore", sparse_output=False), student_cat),
             ("num", StandardScaler(), student_num),
         ],
         remainder="drop",
@@ -190,7 +216,7 @@ y_distill = (1 - best_alpha) * student_train_y + best_alpha * oof_pred
 # -----------------------
 student_pre = ColumnTransformer(
     transformers=[
-        ("cat", OneHotEncoder(handle_unknown="ignore", sparse=False), student_cat),
+        ("cat", OneHotEncoder(handle_unknown="ignore", sparse_output=False), student_cat),
         ("num", StandardScaler(), student_num),
     ],
     remainder="drop",
@@ -233,7 +259,7 @@ print("Best Params:")
 for k,v in search.best_params_.items():
     print(f"  {k}: {v}")
 
-# (참고) 실제 타깃 기준 홀드아웃 MSE도 체크
+# 실제 타깃 기준 홀드아웃 MSE도 체크
 best_student = search.best_estimator_
 best_student.fit(student_train_X.iloc[last_tr_idx], y_distill.iloc[last_tr_idx] if isinstance(y_distill, pd.Series) else y_distill[last_tr_idx])
 holdout_pred = best_student.predict(student_train_X.iloc[last_va_idx])
