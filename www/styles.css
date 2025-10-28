@@ -1,0 +1,94 @@
+:root {
+  --bg: #0e1116;
+  --panel: #151a21;
+  --text: #e7e9ee;
+  --muted: #9aa4b2;
+  --accent: #66d9ef; /* 포인트 */
+  --border: #232a34;
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+}
+
+html,
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Noto Sans KR", system-ui, -apple-system, Segoe UI, Roboto,
+    sans-serif;
+}
+
+.navbar-dark {
+  background: linear-gradient(90deg, #0f1721, #10161e);
+  border-bottom: 1px solid var(--border);
+}
+
+.brand {
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+}
+
+.card-header {
+  border-bottom: 1px solid var(--border) !important;
+  font-weight: 600;
+}
+
+.kpi-row {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+.kpi {
+  flex: 1 1 220px;
+  background: #11161d;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px 18px;
+}
+.kpi .kpi-title {
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0.3px;
+}
+.kpi .kpi-value {
+  font-size: 24px;
+  font-weight: 700;
+}
+.kpi .kpi-sub {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.badge-accent {
+  background: rgba(102, 217, 239, 0.15);
+  color: var(--accent);
+  border: 1px solid rgba(102, 217, 239, 0.35);
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+}
+
+.placeholder {
+  height: 420px;
+  border: 1px dashed #3a4656;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+}
+
+.small-muted {
+  color: var(--muted);
+  font-size: 12px;
+}
+hr.soft {
+  border-color: var(--border);
+  margin: 8px 0 16px;
+  opacity: 0.7;
+}
