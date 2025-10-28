@@ -1,55 +1,129 @@
 from shiny import ui, render, reactive
 import datetime as dt
-from utils.ui_components import kpi, section_caption
+from utils.ui_components import kpi
 from viz.plot_placeholders import hourly_prediction
 
+
 def predict_ui():
-    return ui.layout_column_wrap(
+    return ui.page_fluid(
+        ui.tags.link(rel="stylesheet", href="styles.css"),
+
+        # ── 상단 툴바 ──
         ui.card(
-            ui.card_header(ui.span("입력"), ui.span({"class": "badge-accent ms-2"}, "모델 미연결")),
-            ui.layout_columns(
-                ui.input_date("pred_date", "예측 날짜", value=dt.date.today()),
-                ui.input_action_button("pred_run", "예측 실행", class_="btn btn-primary"),
-                ui.input_numeric("pred_usage", "예상 사용량(kWh)", value=50, min=0),
-                col_widths=[4, 3, 5],
-            ),
-            section_caption("날짜를 선택하고 ‘예측 실행’을 누르면 예측 영역이 갱신됩니다. (현재는 자리 표시자)"),
-        ),
-        ui.card(
-            ui.card_header("KPI"),
+            ui.card_header("실시간 제어"),
             ui.div(
-                kpi("평균 예측단가", "— 원/kWh"),
-                kpi("최소 / 최대", "— / — 원/kWh"),
-                kpi("예상 비용", "— 원", "입력 사용량 × 평균단가"),
+                ui.div(
+                    ui.input_action_button("btn_start", "시작", class_="btn-soft"),
+                    ui.input_action_button("btn_stop",  "멈춤", class_="btn-soft"),
+                    ui.input_action_button("btn_reset", "리셋", class_="btn-soft"),
+                    class_="btns",
+                ),
+                ui.div(
+                    ui.span("시간 단위 선택", class_="seg-label"),
+                    ui.input_radio_buttons(
+                        "time_unit",
+                        None,
+                        {"D": "일별", "H": "시간대별", "Q": "분별(15분)"},
+                        selected="Q",
+                        inline=True,
+                    ),
+                    class_="seg",
+                ),
+                ui.span(
+                    ui.span("", class_="dot"),
+                    ui.span("측정일시", class_="label"),
+                    ui.span(ui.output_text("toolbar_time"), class_="val"),
+                    class_="time-chip",
+                ),
+                class_="toolbar",
+            ),
+        ),
+
+        # ── 예측 지표 ──
+        ui.card(
+            ui.card_header("예측 지표"),
+            ui.div(
+                kpi("실시간 예측 사용량", "— kWh"),
+                kpi("실시간 예측 요금", "— 원"),
+                kpi("누적 예측 요금", "— 원"),
+                kpi("작업 유형", "Light Load"),
                 class_="kpi-row",
             ),
-            ui.div({"class": "small-muted mt-2"}, "피크 시간대 강조는 모델 연결 후 활성화됩니다."),
         ),
+
+        # ── 시간대별 요금 예측 ──
         ui.card(
             ui.card_header("시간대별 요금 예측"),
             hourly_prediction(),
             ui.hr({"class": "soft"}),
-            ui.div({"class": "small-muted"}, "Baseline vs Model 비교, 신뢰구간 밴드는 모델 연결 후 표시됩니다."),
+            ui.div({"class": "small-muted"}, ui.output_text("ts_caption")),
         ),
-        width=1,  # <- deprecation 경고 방지(키워드 인자, 마지막에)
+
+        # ── 누적 사용량 비교 ──
+        ui.card(
+            ui.card_header("누적 사용량 비교"),
+            hourly_prediction(),
+            ui.hr({"class": "soft"}),
+            ui.div({"class": "small-muted"}, ui.output_text("ts_caption2")),
+        ),
     )
 
+
 def predict_server(input, output, session):
-    # 버튼 클릭 상태만 관리 (지금은 자리 표시자 갱신 트리거)
-    last_run = reactive.Value(None)
+    """툴바 시간 + 측정일시 표기(최소 로직)."""
+    latest_ts = reactive.Value(None)
+    running = reactive.Value(False)
+    now_tick = reactive.Value(None)
 
-    @reactive.event(input.pred_run)
-    def _run():
-        last_run.set(input.pred_date())
+    # 외부 실시간 수집에서: session.set_latest_timestamp("YYYY-MM-DD HH:MM:SS") 또는 datetime
+    def set_latest_timestamp(ts):
+        if ts is None:
+            latest_ts.set(None); return
+        if isinstance(ts, dt.datetime):
+            latest_ts.set(ts); return
+        if isinstance(ts, str):
+            try:
+                latest_ts.set(dt.datetime.fromisoformat(ts))
+            except ValueError:
+                latest_ts.set(dt.datetime.strptime(ts, "%Y-%m-%d %H:%M:%S"))
+            return
+        latest_ts.set(dt.datetime.fromisoformat(str(ts)))
+    session.set_latest_timestamp = set_latest_timestamp
+
+    @reactive.event(input.btn_start)
+    def _start(): running.set(True)
+
+    @reactive.event(input.btn_stop)
+    def _stop(): running.set(False)
+
+    @reactive.event(input.btn_reset)
+    def _reset():
+        running.set(False); latest_ts.set(None); now_tick.set(None)
+
+    @reactive.effect
+    def _tick():
+        if not running():
+            return
+        reactive.invalidate_later(1000)
+        now_tick.set(dt.datetime.now())
 
     @output
-    @render.ui
-    def pred_kpis():
-        _ = last_run()  # 클릭 시 갱신
-        return ui.div()  # KPI는 위 카드에서 정적 자리로 대체(필요시 동적 업데이트로 변경)
-    
+    @render.text
+    def toolbar_time():
+        ts = latest_ts()
+        if ts:
+            return ts.strftime("%Y-%m-%d %H:%M:%S")
+        t = now_tick()
+        return t.strftime("%Y-%m-%d %H:%M:%S") if t else "—"
+
     @output
-    @render.ui
-    def pred_plot():
-        _ = last_run()
-        return ui.div()  # Plotly는 viz 모듈 교체 시 렌더
+    @render.text
+    def ts_caption():
+        ts = latest_ts()
+        return f"마지막 업데이트: {ts:%Y-%m-%d %H:%M:%S}" if ts else "마지막 업데이트: —"
+
+    @output
+    @render.text
+    def ts_caption2():
+        ts = latest_ts()
+        return f"마지막 업데이트: {ts:%Y-%m-%d %H:%M:%S}" if ts else "마지막 업데이트: —"
