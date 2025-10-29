@@ -102,116 +102,224 @@ hr.soft {
   font-size: 12px;
 }
 
-/* Toolbar (실시간 제어) */
-.toolbar {
-  display: flex;
-  align-items: center;
-  gap: 18px;
-  flex-wrap: wrap;
-  padding: 8px 8px 2px;
-}
-.toolbar .btns {
-  display: flex;
-  gap: 10px;
-}
-/* Bootstrap과 충돌 방지 */
-.btn.btn-soft {
-  background: linear-gradient(180deg, #2e7be9, #2563eb) !important;
-  border: none !important;
-  color: #fff !important;
-  font-weight: 700;
-  padding: 0.55rem 1.1rem;
-  border-radius: 12px;
-  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.25);
-}
-.btn.btn-soft:hover {
-  filter: brightness(1.05);
-}
-.btn.btn-soft:active {
-  transform: translateY(1px);
+/* ===== 실시간 제어 툴바 (Modern) ===== */
+.toolbar-container {
+  margin-bottom: 20px;
 }
 
-/* segmented radio */
-.seg {
+.toolbar-modern {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-left: 6px;
-}
-.seg-label {
-  font-size: 12px;
-  color: var(--muted);
-  margin-right: 4px;
-}
-.seg .form-check,
-.seg .form-check.form-check-inline {
-  margin-right: 0;
-}
-.seg .form-check-input {
-  position: absolute !important;
-  opacity: 0 !important;
-  width: 0 !important;
-  height: 0 !important;
-}
-.seg .form-check-input + .form-check-label,
-.seg .form-check-label {
-  background: #f1f5f9;
-  color: #0f172a;
-  border: 1px solid var(--border);
-  padding: 0.45rem 0.8rem;
-  border-radius: 10px;
-  font-weight: 600;
-  transition: all 0.15s;
-  cursor: pointer;
-  user-select: none;
-}
-.seg .form-check-input:checked + .form-check-label,
-.seg .form-check-input:checked ~ .form-check-label {
-  background: #ebf2ff;
-  color: var(--accent);
-  border-color: #bcd0ff;
-  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.18);
+  justify-content: space-between;
+  gap: 20px;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 16px 20px;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
 }
 
-/* time chip */
-.time-chip {
-  margin-left: auto;
+/* 좌측: 컨트롤 버튼 */
+.control-btns {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-control {
+  background: #ffffff !important;
+  border: 1.5px solid #e2e8f0 !important;
+  color: #475569 !important;
+  font-weight: 600 !important;
+  font-size: 14px !important;
+  padding: 8px 18px !important;
+  border-radius: 10px !important;
+  transition: all 0.2s ease !important;
+  box-shadow: 0 2px 4px rgba(15, 23, 42, 0.04) !important;
+}
+
+.btn-control:hover {
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 4px 8px rgba(15, 23, 42, 0.08) !important;
+  transform: translateY(-1px);
+}
+
+.btn-control:active {
+  transform: translateY(0);
+}
+
+.btn-start:hover {
+  background: #f0fdf4 !important;
+  border-color: #86efac !important;
+  color: #16a34a !important;
+}
+
+.btn-stop:hover {
+  background: #fef3c7 !important;
+  border-color: #fcd34d !important;
+  color: #d97706 !important;
+}
+
+.btn-reset:hover {
+  background: #fef2f2 !important;
+  border-color: #fca5a5 !important;
+  color: #dc2626 !important;
+}
+
+/* 우측: 측정일시 칩 */
+.time-chip-modern {
   display: flex;
   align-items: center;
-  gap: 10px;
-  background: #0b1220;
-  color: #fff;
+  gap: 12px;
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
   border-radius: 12px;
-  padding: 10px 14px;
-  box-shadow: 0 14px 28px rgba(2, 6, 23, 0.22);
+  padding: 10px 16px;
+  box-shadow: 0 8px 16px rgba(15, 23, 42, 0.2);
+  min-width: 240px;
 }
-.time-chip .dot {
-  width: 8px;
-  height: 8px;
+
+.status-dot {
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   background: #22c55e;
-  box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.2);
-  animation: pulse 1.6s infinite;
+  box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.15);
+  animation: pulse-dot 2s ease-in-out infinite;
 }
-@keyframes pulse {
-  0% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.15);
-  }
+
+@keyframes pulse-dot {
+  0%,
   100% {
     transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.8;
   }
 }
-.time-chip .label {
-  opacity: 0.75;
-  font-size: 12px;
+
+.time-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
-.time-chip .val {
-  font-size: 18px;
-  font-weight: 800;
-  letter-spacing: 0.2px;
+
+.time-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.time-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: #ffffff;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.3px;
+}
+
+/* ===== 진행 상황 + 시간 단위 카드 ===== */
+.progress-card-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 16px 20px;
+}
+
+.progress-section {
+  flex: 1;
+}
+
+.progress-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: block;
+  margin-bottom: 6px;
+}
+
+.progress-content {
+  font-size: 15px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+/* 시간 단위 선택 (카드 내부) */
+.time-unit-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 8px 14px;
+}
+
+.unit-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.time-unit-section .form-check {
+  margin: 0 !important;
+}
+
+.time-unit-section .form-check-input {
+  display: none !important;
+}
+
+.time-unit-section .form-check-label {
+  background: transparent !important;
+  border: none !important;
+  color: #64748b !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  padding: 6px 14px !important;
+  margin: 0 !important;
+  border-radius: 8px !important;
+  transition: all 0.2s ease !important;
+  cursor: pointer !important;
+}
+
+.time-unit-section .form-check-input:checked + .form-check-label {
+  background: #2563eb !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3) !important;
+}
+
+/* 반응형 */
+@media (max-width: 1024px) {
+  .toolbar-modern {
+    flex-wrap: wrap;
+  }
+
+  .time-chip-modern {
+    flex: 1 1 100%;
+    justify-content: center;
+  }
+
+  .progress-card-inner {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .time-unit-section {
+    justify-content: center;
+  }
+}
+
+@media (max-width: 640px) {
+  .control-btns {
+    width: 100%;
+    justify-content: center;
+  }
 }
 
 /* ===== Factory Bill (billx*) ===== */
